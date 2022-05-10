@@ -97,96 +97,6 @@ legend('precip')
 
 Ilags = ent.I_tau_normbyH; %lags, source, target
 
-markertypes = ['.','.','.','.','.','.',... 
-    '*','*','*','*','*',...
-    'o','o','o','o','o','o',...
-    'p','s','d','d','d','d','d','d'];
-colorvect = [jet(6);jet(5);jet(7);jet(7)];
-
-figure(2)
-for i =1:6
-    subplot(3,2,i)
-    hold on
-    for s = 7:size(AllData,2)
-       plot(0:7,Ilags(:,s,i),'Marker',markertypes(s),'MarkerSize',15,'LineStyle','none','Color',colorvect(s,:),'MarkerFaceColor',colorvect(s,:)); 
-        [maxval maxind]=max(Ilags(:,s,i));
-    
-        MaxImatrix(i,s-6)=maxval;
-        MaxIlag(i,s-6)=maxind-1;
-        ax=gca;
-        ax.FontSize = 13;
-    
-    end
-    
-    xlim([0 7])
-    ylim([.1 1])
-    xlabel('time lag (years)')
-    ylabel('normalized MI')
-    if i==1
-    %legend(varnames_nofish,'Location','EastOutside')
-    end
-    title(fishsitenames(i))
-    
-end
-
-
-
-
-
-%% do a lagged correlation analysis (pasting code from Alyssa's MS report...)
-
-drivers_indices = 1:size(AllData,2);
-targets_indices = 1:6;
-nlags = 7;
- 
-[Corrvals, pvals] = corrcoef(AllData,'Rows','pairwise');
-  
-for t = 0:nlags 
- 
-drivers_lagged = AllData(1:end-t, drivers_indices); 
-targets_current = AllData((t+1):end, targets_indices); 
-new_variables = [drivers_lagged targets_current]; 
-
-[Corrvals_lagged(:,:,t+1), pvals_lagged(:,:,t+1)] = corrcoef(new_variables,'Rows','pairwise');
- 
-end
-
-k=1;
-
-
-for  j = (size(AllData,2)+1):(size(AllData,2)+6) %targets (salmon)
-    
-    for i = 7:size(AllData,2) %lagged sources (all variables)
-        
-        vector=reshape(Corrvals_lagged(j,i,1:nlags+1),[1,nlags+1]);
-        vectorp=reshape(pvals_lagged(j,i,1:nlags+1),[1,nlags+1]);
-        vector(vectorp > 0.005) = nan;
-        numnans = length(find(isnan(vector)));
-        
-        [maxval maxind]=max(vector);
-    
-        MaxCorrmatrix(j-size(AllData,2),i-6)=maxval;
-        MaxCorrlag(j-size(AllData,2),i-6)=maxind-1;
-    
-        figure(3)
-        subplot(3,2,k)
-        hold on
-        plot(0:7, vector,'Marker',markertypes(i),'MarkerSize',15,'Color',colorvect(i,:),'LineStyle','none','MarkerFaceColor',colorvect(i,:));
-        %yline(0,'--r');
-        title (sprintf('%s',varnames_all{j-size(AllData,2)}));
-        xlabel('time lag (years)')
-        %sgtitle('Lagged Correlations');
-        ax = gca;
-        ax.FontSize = 13;
-        ylim([-1 1])
-        xlim([0 7])
-        
-        
-
-    end
-    
-    k=k+1;
-end
 
 
 %% make some plots of cases that find lagged MI but not correlation
@@ -227,6 +137,8 @@ plot(SWE_midCRB(1:end-4),BON(5:end),'.b','MarkerSize',10)
 title('SWE to BON')
 xlabel('SWE(t-4)')
 ylabel('BON(t)')
+
+
 subplot(2,3,3)
 plot(PPT(1:end-6),BON(7:end),'.b','MarkerSize',10)
 title('Precip to BON')
@@ -238,75 +150,153 @@ plot(TD_LWG68(1:end),WEL_frac(1:end),'.b','MarkerSize',10)
 title('TDLWG68 to WEL/BON')
 ylabel('WEL(t)/BON(t)')
 xlabel('TDLWG68(t)')
+
 subplot(2,3,5)
-plot(TD_LWG68(1:end-4),BON(5:end),'.b','MarkerSize',10)
+plot(TD_LWG68(1:end-3),BON(4:end),'.b','MarkerSize',10)
 title('TDLWG68 to BON')
-xlabel('TDLWG68(t-4)')
+xlabel('TDLWG68(t-3)')
 ylabel('BON(t)')
+
 subplot(2,3,6)
-plot(Spill(1:end),PRD_frac(1:end),'.b','MarkerSize',10)
-title('Spill to PRD/BON')
-xlabel('Spill(t)')
-ylabel('PRD(t)/BON(t)')
+plot(PDO(1:end-5),WEL_frac(6:end),'.b','MarkerSize',10)
+title('PDO to WEL')
+xlabel('PDO(t-5)')
+ylabel('BON(t)')
 
-%% Circos plots for sources...correlation vs MI
 
-ntargets=6;
 
-foldername = 'CircosFiles';
-if exist(foldername)~=7
-    mkdir(foldername);
+%% do a lagged correlation analysis for comparison with MI
+
+drivers_indices = 1:size(AllData,2);
+targets_indices = 1:size(AllData,2);
+nlags = 5;
+ 
+[Corrvals, pvals] = corrcoef(AllData,'Rows','pairwise');
+  
+for t = 0:nlags 
+ 
+drivers_lagged = AllData(1:end-t, drivers_indices); 
+targets_current = AllData((t+1):end, targets_indices); 
+new_variables = [drivers_lagged targets_current]; 
+
+[corrs pvals] = corrcoef(new_variables,'Rows','pairwise');
+
+Corrvals_lagged(:,:,t+1) = corrs(1:25,1:25);
+pvals_lagged(:,:,t+1) = pvals(1:25,1:25);
 end
-addpath(foldername);
 
-colR = round(colorvect.*255);
 
-for j =1:2
-
-    if j==1
-        fileID = fopen([foldername,'/MI35yr','.txt'],'w+');
-        matrix = MaxImatrix;
-        colSource = 0;
-    elseif j==2
-        fileID = fopen([foldername,'/Corr35yr','.txt'],'w+');
-        matrix = abs(MaxCorrmatrix);
-        matrix(isnan(matrix))=0;
-        colSource = 255;
-    end
+for  j = 1:size(AllData,2)
     
-    %print first line: label label 1 2 3 4.....nvars
-    fprintf(fileID,'label label ');
-    for v =1:ntargets
-        fprintf(fileID,'%d ',v);
-    end
-    fprintf(fileID,'\n');
-    
-    %print second line: label label colors (all same for source vars)
-    fprintf(fileID,'label label ');
-    for v =1:ntargets
-        fprintf(fileID,'%d,%d,%d ',colSource,colSource,colSource);
-    end
-    fprintf(fileID,'\n'); 
-    
-    %print third line: label label target varnames
-    fprintf(fileID,'label label ');
-    for v =1:ntargets
-        fprintf(fileID,'%s ',fishsitenames{v});
-    end
-    fprintf(fileID,'\n');
-    
-    %print 3rd -- lines: color sourcenames
-    
-    for vp = 1:size(matrix,2)
-        fprintf(fileID,'%d,%d,%d %s ',colR(vp,1), colR(vp,2), colR(vp,3), varnames_nofish{vp});
-
-        for v =1:ntargets
-            fprintf(fileID,'%d  ',round(matrix(v,vp).*100));
+    for i = 1:size(AllData,2) %lagged sources (all variables)
+        
+        vector=reshape(Corrvals_lagged(j,i,1:nlags+1),[1,nlags+1]);
+        vectorp=reshape(pvals_lagged(j,i,1:nlags+1),[1,nlags+1]);
+        vector(vectorp > 0.01) = nan;
+        numnans = length(find(isnan(vector)));
+        
+        [maxval maxind]=max(abs(vector));
+        if vector(maxind)<0
+            maxval = -maxval;
         end
-
-        fprintf(fileID,'\n');
+        
+    
+        MaxCorrmatrix(j,i)=maxval;
+        MaxCorrlag(j,i)=maxind-1;
+    
     end
-
-
+    
 end
 
+
+
+I_dom = ent.I_dom_normbyH;
+I_dom(I_dom==0)=nan;
+I_dom_lag = ent.I_dom_lag;
+
+for j = 1:size(AllData,2)
+    I_dom(j,j)=nan;
+    I_dom_lag(j,j)=nan; 
+    %omit self links
+end
+
+%plot matrix of MI and associated lags
+figure(12)
+subplot(1,3,1)
+imagesc(I_dom(:,1:6),'AlphaData',~isnan(I_dom(:,1:6)))
+set(gca,'Ytick',1:25,'Yticklabels',varnames_all)
+set(gca,'Xtick',1:25,'Xticklabels',varnames_all)
+xtickangle(gca,60)
+caxis([0 .6])
+colorbar('Location','southoutside')
+title('MI for Annual Counts')
+ylabel('Sources')
+xlabel('Targets')
+colormap(copper)
+
+subplot(1,3,2)
+imagesc(I_dom_lag(:,1:6),'AlphaData',~isnan(I_dom(:,1:6)))
+%set(gca,'Ytick',1:25,'Yticklabels',varnames_all)
+set(gca,'Xtick',1:25,'Xticklabels',varnames_all)
+xtickangle(gca,60)
+caxis([0 5])
+colorbar('Location','southoutside')
+title('Dominant time lags')
+xlabel('Targets')
+colormap(copper)
+
+
+%plot matrix of correlations and associated lags
+figure(13)
+subplot(1,2,1)
+imagesc(MaxCorrmatrix,'AlphaData',~isnan(MaxCorrmatrix))
+set(gca,'Ytick',1:25,'Yticklabels',varnames_all)
+set(gca,'Xtick',1:25,'Xticklabels',varnames_all)
+xtickangle(gca,60)
+caxis([-1 1])
+colorbar('Location','southoutside')
+title('Correlations for Annual Counts')
+ylabel('Sources')
+xlabel('Targets')
+
+subplot(1,2,2)
+imagesc(MaxCorrlag,'AlphaData',~isnan(MaxCorrmatrix))
+%set(gca,'Ytick',1:25,'Yticklabels',varnames_all)
+set(gca,'Xtick',1:25,'Xticklabels',varnames_all)
+xtickangle(gca,60)
+caxis([0 5])
+colorbar('Location','southoutside')
+title('Dominant time lags')
+xlabel('Targets')
+
+%comparison of cases where both MI and Corr detected, vs one or the other
+
+
+for i = 1:size(AllData,2)
+    for j=1:size(AllData,2)
+        if isnan(MaxCorrmatrix(i,j)) && isnan(I_dom(i,j))
+            Match(i,j) = nan;
+        elseif ~isnan(MaxCorrmatrix(i,j)) && ~isnan(I_dom(i,j))
+            Match(i,j) = 0;            
+        elseif ~isnan(MaxCorrmatrix(i,j)) && isnan(I_dom(i,j))
+            Match(i,j)=-1;            
+        else
+            Match(i,j)=1;           
+        end
+    end
+end
+
+num_tot_links = sum(sum(~isnan(Match)))
+num_both_links = sum(sum(Match == 0))
+num_corr_links = sum(sum(Match == -1))
+num_MI_links = sum(sum(Match == 1))
+
+%%
+figure(12)
+subplot(1,3,3)
+imagesc(Match(:,1:6), 'AlphaData',~isnan(Match(:,1:6)))
+set(gca,'Xtick',1:25,'Xticklabels',varnames_all)
+xtickangle(gca,60)
+%set(gca,'Ytick',1:25)
+colormap(jet)
+colorbar('Location','southoutside')

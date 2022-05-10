@@ -1,46 +1,8 @@
 function [entropy] = EntropyFun35yr(mi,Data,seg)
 %Function to compute various entropy, transfer entropy, information decomposition measures
-%Allison Goodwell, June 2014
-%August 2014: also calculate lagged mutual information
-%Jan 2015: updated method of KDE
-%Jan 2015: alter method of transfer entropy: compute T based on
-%conditioning lag of min[H(Yt)|H(Yt-lag))]
-%Feb 2015: bin_scheme: 'local' or 'global', Range: min and max data values
-%Feb 2015: changed kd combined function to normalize variables
-%June 2015: changed KDE and info measures code (to also compute
-%redundant/synergistic information
-%July 2015: save certain computed pdfs according to [trans, rec, lag]
-%vector
-%July 2015: consider multiple sources as contributors to target
-%maxS = number of sources to any single target varible to compute unique
-%information
-%August 2015: modify code to reduce number of computations to redundancy:
-%first eliminate redundant links from each source node (with multiple
-%signifcant lags - many lags likely to be completely redundant)
-%September 2015: added cumulative synergy, changed outputs and inputs to
-%structures: mi has all parameters, data is matrix of data, entropy
-%is structure with entropy results and pdfs according to what should be
-%saved
-%September 8, 2015: implement alternate version of redundancy (also look
-%for correlation between sources)
-%September 30, 2015: updated compute_info_measures for output as structure
-%January 18, 2016: updates for GUI - input h (smoothing parameter) to KDE
-%computation, option for method in mi - fixed binning or KDE
-%February 2016: update options: mi.netopt (1=full network, 2 = H and I
-%only, 3 = H only (only entropy of nodes)
-%February 2016: alter redundancy: 2 redundancy matrices: R_tau is
-%redundancy between a single source to a target node at different time
-%lags, R_T is redundancy between dominant link from each source to a target
 
-%Update: altered version to consider zero-lag I as possible dominant link
-%for T/I, other measures, depending on mi.ZeroLagOpt
-
-%Update 6/10/16: mi.DomNormOpt = 0 for classifying dominant link as
-%non-normalized (default), = 1 for normalized (previous method)
-%changed several variable names
-
-%Update 7/1/20: altered code for Nick Salmon cases, omitting SUR code
-%and adding TE_Bonneville variable
+%Update 7/1/20: altered code for Nick Salmon cases, omitting SUR code, 35
+%year annual case (sparse data)
 
 nvars = mi.nvars;
 nTests = mi.nTests;
@@ -51,7 +13,6 @@ Range = mi.Range;
 method = mi.method;
 z_opt = mi.ZeroLagOpt;
 DomNormOpt = 0;
-z_effect = mi.DataPrep.Z_effect;
 
 targets = mi.Targets; %added June 2020, only need these variables as targets of info
 ntargs = length(targets);
@@ -108,10 +69,12 @@ for Source = 1:nvars
     
     X = Data(:,Source);
     
-    pdf = compute_pdfGUI(X,N,bin_scheme, Range(:,Source),method,z_effect(Source+1));
+    pdf = compute_pdfGUI(X,N,bin_scheme, Range(:,Source));
     info = compute_info_measures(pdf);
     H_x_1(Source) = info.Hx;
+    H_pdf_vals(:,Source) = pdf;
 end
+
 
 
 %% compute MI and lagged MI for all lags and pairs
@@ -160,7 +123,7 @@ for Source = 1:nvars %transmitters
            
             %first compute mutual information for all lags
             %fprintf('computing lagged I Source %d Target %d lag %d\n',Source,Target,lagt)
-                pdf = compute_pdfGUI(Tuple,N,bin_scheme, [Range(:,Source)  Range(:,Target)],method,[z_effect(Source+1) z_effect(Target+1)]);
+                pdf = compute_pdfGUI(Tuple,N,bin_scheme, [Range(:,Source)  Range(:,Target)]);
                 info = compute_info_measures(pdf);
                 I_lags(t,Source,Target)=info.I;
                 Htemp = min(info.Hx1,info.Hx2);
@@ -178,11 +141,11 @@ for Source = 1:nvars %transmitters
                         Tuple(all(isnan(Tuple),2),:) = [];
                         
                         pdfshuff = compute_pdfGUI(Tuple,N,bin_scheme, ...
-                            [Range(:,Source)  Range(:,Target)],method,[z_effect(Source+1) z_effect(Target+1)]);
+                            [Range(:,Source)  Range(:,Target)]);
                         infoshuff = compute_info_measures(pdfshuff);
                         I_shuff(test) = infoshuff.I;
                     end
-                    I_shuff_sig = mean(I_shuff)+4*std(I_shuff);
+                    I_shuff_sig = mean(I_shuff)+3*std(I_shuff);
                     [h,p,ci,stats] = ttest((info.I-I_shuff)./std(I_shuff));
                 end
 
@@ -204,7 +167,7 @@ for Source = 1:nvars %transmitters
                 
                 
                 pdf = compute_pdfGUI(Tuple,N,bin_scheme,...
-                    [Range(:,Source) Range(:,Target) Range(:,Target)],method,[z_effect(Source+1) z_effect(Target+1)]);
+                    [Range(:,Source) Range(:,Target) Range(:,Target)]);
                 info = compute_info_measures(pdf);
                 TE(t,Source,Target)=info.T;
                 if info.Itot>0
@@ -216,7 +179,7 @@ for Source = 1:nvars %transmitters
                 Tuple(all(isnan(Tuple),2),:) = [];
                 
                 pdf = compute_pdfGUI(Tuple,N,bin_scheme,...
-                    [Range(:,Source) Range(:,1) Range(:,Target)],method);
+                    [Range(:,Source) Range(:,1) Range(:,Target)]);
                 info = compute_info_measures(pdf);
                 TE_Bonneville(t,Source,Target)=info.T;
                
@@ -232,7 +195,7 @@ for Source = 1:nvars %transmitters
             Tuple = [X Y];
             Tuple(all(isnan(Tuple),2),:) = [];
             
-            pdf = compute_pdfGUI(Tuple,N,bin_scheme, [Range(:,Source)  Range(:,Target)],method, [z_effect(Source+1) z_effect(Target+1)]);
+            pdf = compute_pdfGUI(Tuple,N,bin_scheme, [Range(:,Source)  Range(:,Target)]);
             info = compute_info_measures(pdf);
             I_inst(Source,Target)=info.I;
             
@@ -245,11 +208,11 @@ for Source = 1:nvars %transmitters
                     Tuple(all(isnan(Tuple),2),:) = [];
                     
                     pdfshuff = compute_pdfGUI(Tuple,N,bin_scheme, ...
-                        [Range(:,Source)  Range(:,Target)],method, [z_effect(Source+1) z_effect(Target+1)]);
+                        [Range(:,Source)  Range(:,Target)]);
                     infoshuff = compute_info_measures(pdfshuff);
                     I_shuff(test) = infoshuff.I;
                 end
-                I_shuff_sig = mean(I_shuff)+4*std(I_shuff);
+                I_shuff_sig = mean(I_shuff)+3*std(I_shuff);
                 
                 I_inst_sig(Source,Target)=I_shuff_sig;
                
@@ -340,6 +303,8 @@ entropy.I_inst_normbyH=     I_inst_normbyH;     %normalized lag zero mutual info
 entropy.I_inst_sigthresh =  I_inst_sig;   %statistical significance threshold for mutual information
 
 entropy.TE_Bonneville =     TE_Bonneville;  %AEG added for Nick salmon thesis
+
+entropy.H_pdf_vals =        H_pdf_vals; %matrix of pdfs of individual variables
 
 end
 

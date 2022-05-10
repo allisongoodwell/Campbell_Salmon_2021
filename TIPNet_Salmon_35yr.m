@@ -43,8 +43,7 @@ airtemp(airtemp<minairtemp)=minairtemp;
 
 %AEG edit 10/5/20: keep BON, but for others - fraction of BON
 for i =2:6
-    
-
+   
     vect=salmon_pops(:,i)./salmon_pops(:,1); %
 
     %omit outliers
@@ -86,23 +85,22 @@ legend(tempnames)
 
 
 %Running TIPNet...
-mi.Targets = 1:6; %only targets of interest are the salmon pops...just reduces TIPNet calcs
+mi.Targets = 1:25; %1:6 to reduce tipnet calcs...
 
 mi.nvars=25;
 mi.nTests=500;
 mi.N = 3; %can change this...should be between 3-5 bins for pdfs..
-mi.lagvect = 0:7; %max lag of 7 years
+mi.lagvect = 0:5; %max lag of 7 years
 mi.bin_scheme = 'local';   
 mi.method = 'fixed';
 mi.ZeroLagOpt = 0;
-mi.DataPrep.Z_effect = zeros(1,mi.nvars+1);
 mi.NoSelfOpt=0;
 
 mi.Range = [min(AllData); max(AllData)];
-ent = EntropyFun35yr(mi,AllData,1); %only difference in EntropyFun is I lowered statistical
-%significance cutoff, since there are only 35 data pts...
+ent = EntropyFun35yr(mi,AllData,1);
+lincor = LinCorFun(mi,AllData,1);
 
-save('RESULTS_35yr.mat','ent','varnames_all','fishsitenames');
+save('RESULTS_35yr.mat','ent','varnames_all','fishsitenames','lincor');
 
 
 

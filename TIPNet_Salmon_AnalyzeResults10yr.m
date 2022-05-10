@@ -14,10 +14,16 @@ clear all
 close all
 clc
 
-load('RESULTS_10yr_100620.mat')
+load('RESULTS_10yr.mat')
 
-ent_spring = ent{1,1}; %first index is spr/sum/fall case, second is values (1) increments (2)
-ent_fall = ent{2,1}; 
+ent_spring = ent{1}; %first index is spr/sum/fall case, second is values (1) increments (2)
+ent_fall = ent{2}; 
+
+lin_spring = lincor{1}; %lagged linear correlation results (to compare with MI)
+lin_fall = lincor{2};
+
+Clags_spring = lin_spring.C_lags;
+Clags_fall = lin_fall.C_lags;
 
 
 Ilags_spring = ent_spring.I_tau_normbyH; %lags, source, target
@@ -85,13 +91,13 @@ figure(2) %plot sources in each panel
 ct=1;
 for j = 2:ntargets
     
-    subplot(1,2,1)
+    subplot(2,2,1)
     hold on
     vects = reshape(Ilags_spring(:,1,j),[31,1]);
     hh(j-1)=plot(vects,'LineWidth',2,'Color',colorvect(j,:));
     plot(Bonlag_spring(j),max(vects),'.','Markersize',20,'Color',colorvect(j,:))
     
-    subplot(1,2,2)
+    subplot(2,2,2)
     hold on
     vects = reshape(Ilags_fall(:,1,j),[31,1]);
     ct=ct+1;
@@ -101,95 +107,90 @@ for j = 2:ntargets
 end
 
 legend(hh,{'MCN','IHR','LWG','PRD','WEL'})
-subplot(1,2,1)
+subplot(2,2,1)
 title(['MI(BON;salmon) spring'])
 ylim([0 .55])
 xlim([0 30])
 xlabel('time lag (days)')
 ylabel('normalized MI (bits/bit)')
 
-subplot(1,2,2)
+subplot(2,2,2)
 title(['MI(BON;salmon) fall'])
 ylim([0 .55])
 xlim([0 30])
 xlabel('time lag (days)')
 ylabel('normalized MI (bits/bit)')
 
-%%    
-%Q and T as sources (MI and TE)
-figure(3)
-ind=1;
-q_ind=9;
-t_ind=12;
-for i =1:ntargets
-    
+%correlation version
 
-     springMI = reshape(Ilags_spring(:,q_ind,i),[31,1]);
-     springTE = reshape(TElags_spring(:,q_ind,i),[31,1]);
-     fallMI = reshape(Ilags_fall(:,q_ind,i),[31,1]);
-     fallTE = reshape(TElags_fall(:,q_ind,i),[31,1]);
-    
-    subplot(2,2,1)
-    hold on
-    vect = springTE/springMI;
-    vect(vect>1000)=nan;
-    plot(vect,'Color',colorvect(i,:),'Linewidth',2)
-    line([0 30],[1 1],'Color','k','LineWidth',2,'LineStyle','--')
-   
-    subplot(2,2,2)
-    hold on
-    vect = fallTE/fallMI;
-    vect(vect>1000)=nan;
-    plot(vect,'Color',colorvect(i,:),'Linewidth',2)
-    line([0 30],[1 1],'Color','k','LineWidth',2,'LineStyle','--')
+ct=1;
+for j = 2:ntargets
 
-end
-
-
-subplot(2,2,1)
-xlim([0 30]);
-ylim([0.25 3])
-title('Q: TE/MI spring')
-subplot(2,2,2)
-xlim([0 30]);
-title('Q: TE/MI fall')
-ylim([0.25 3])
-
-
-
-for i =1:ntargets
-    
-
-     springMI = reshape(Ilags_spring(:,t_ind,i),[31,1]);
-     springTE = reshape(TElags_spring(:,t_ind,i),[31,1]);
-     fallMI = reshape(Ilags_fall(:,t_ind,i),[31,1]);
-     fallTE = reshape(TElags_fall(:,t_ind,i),[31,1]);
-   
     subplot(2,2,3)
     hold on
-    vect = springTE/springMI;
-    vect(vect>1000)=nan;
-    plot(vect,'Color',colorvect(i,:),'Linewidth',2)
-    line([0 30],[1 1],'Color','k','LineWidth',2,'LineStyle','--')
-    
+    vects = (reshape(Clags_spring(:,1,j),[31,1]));
+    hh(j-1)=plot(flipud(vects),'LineWidth',2,'Color',colorvect(j,:));
+
     subplot(2,2,4)
     hold on
-    vect = fallTE/fallMI;
-    vect(vect>1000)=nan;
-    plot(vect,'Color',colorvect(i,:),'Linewidth',2)
-    line([0 30],[1 1],'Color','k','LineWidth',2,'LineStyle','--')
-
+    vects = (reshape(Clags_fall(:,1,j),[31,1]));
+    ct=ct+1;
+    plot(flipud(vects),'LineWidth',2,'Color',colorvect(j,:));   
+    ct=ct+1;
 end
 
-
+legend(hh,{'MCN','IHR','LWG','PRD','WEL'})
 subplot(2,2,3)
-xlim([0 30]);
-ylim([.25 3])
-title('T: TE/MI spring')
+title(['Corr(BON;salmon) spring'])
+
+xlim([0 30])
+xlabel('time lag (days)')
+ylabel('corr coeff')
+
 subplot(2,2,4)
-xlim([0 30]);
-title('T: TE/MI fall')
-ylim([.25 3])
+title(['Corr(BON;salmon) fall'])
+
+xlim([0 30])
+xlabel('time lag (days)')
+ylabel('corr coeff')
+
+
+%%  UPDATE - Q and T (old code below for TE and MI measures)
+
+figure(3)
+
+Vars = categorical(fishsitenames);
+Vars = reordercats(Vars,fishsitenames);
+
+subplot(2,3,1)
+bar(Vars,[ent_spring.U_T_Bon; ent_spring.U_Bon_T; ent_spring.S_BonT; ent_spring.R_BonT]','stacked')
+ylim([0 .8])
+title('S_1: T_{lower} and S_2: BON Counts')
+legend({'U_{s1}','U_{s2}','S','R'})
+
+
+subplot(2,3,2)
+bar(Vars,[ent_spring.U_Q_Bon; ent_spring.U_Bon_Q; ent_spring.S_BonQ; ent_spring.R_BonQ]','stacked')
+ylim([0 .8])
+title('S_1: Q_{lower} and S_2: BON Counts')
+
+
+subplot(2,3,3)
+bar(Vars,[ent_spring.U_T_Q; ent_spring.U_Q_T; ent_spring.S_QT; ent_spring.R_QT]','stacked')
+ylim([0 .8])
+title('S_1: T_{lower} and S_2: Q_{lower}')
+
+subplot(2,3,4)
+bar(Vars,[ent_fall.U_T_Bon; ent_fall.U_Bon_T; ent_fall.S_BonT; ent_fall.R_BonT]','stacked')
+ylim([0 .8])
+
+subplot(2,3,5)
+bar(Vars,[ent_fall.U_Q_Bon; ent_fall.U_Bon_Q; ent_fall.S_BonQ; ent_fall.R_BonQ]','stacked')
+ylim([0 .8])
+
+subplot(2,3,6)
+bar(Vars,[ent_fall.U_T_Q; ent_fall.U_Q_T; ent_fall.S_QT; ent_fall.R_QT]','stacked')
+ylim([0 .8])
 
 
 
@@ -279,7 +280,7 @@ tempnames = {'LowerT','SnakeT','UpperT'};
 %now want to segment by seasons
 %will create 3 datasets: spring, summer/fall, and spring/summer/fall
 %breakpoints: DOY 60 (March 1), DOY 180 (late June), DOY 330 (late Nov)
-x1 = 60; x2 = 180; x3 =330;
+x1=90; x2=220; x3=330;
 
 %need to convert date vector into DOY vector
 jd = juliandate([Y+1900,M,D]);
@@ -355,7 +356,7 @@ T = temps(:,1);
     title('Flow')
     
 
-%% create text files for Circos graphs
+%% create text files for Circos graphs (uncomment if desired)
 
 %first get matrix of maximum values and associated lags 
 
@@ -367,23 +368,29 @@ for source =1:nsources
         
         MI_vect_spring = Ilags_spring(:,si,target);
         TE_vect_spring = TElags_spring(:,si,target);
+        Corr_vect_spring = Clags_spring(:,si,target);
         
-        MI_div_TE_spring = MI_vect_spring./TE_vect_spring;
+        MI_vect_spring(isnan(MI_vect_spring))=0;
+        TE_vect_spring(isnan(TE_vect_spring))=0;
+        Corr_vect_spring(isnan(Corr_vect_spring))=0;
+        
         
         [MI_matrix_spring(source,target), lagMI_matrix_spring(source,target)] = max(MI_vect_spring);
         [TE_matrix_spring(source,target), lagTE_matrix_spring(source,target)] = max(TE_vect_spring);
-        
-        MIdivTE_spring(source,target) = MI_div_TE_spring(lagTE_matrix_spring(source,target));
+        [Corr_matrix_spring(source,target), lagCorr_matrix_spring(source,target)] = max(Corr_vect_spring);
         
         MI_vect_fall = Ilags_fall(:,si,target);
         TE_vect_fall = TElags_fall(:,si,target);
+        Corr_vect_fall = Clags_fall(:,si,target);
         
-        MI_div_TE_fall = MI_vect_fall./TE_vect_fall;
+        MI_vect_fall(isnan(MI_vect_fall))=0;
+        TE_vect_fall(isnan(TE_vect_fall))=0;
+        Corr_vect_fall(isnan(Corr_vect_fall))=0;
+        
         
         [MI_matrix_fall(source,target), lagMI_matrix_fall(source,target)] = max(MI_vect_fall);
         [TE_matrix_fall(source,target), lagTE_matrix_fall(source,target)] = max(TE_vect_fall);
-        
-        MIdivTE_fall(source,target) = MI_div_TE_fall(lagTE_matrix_fall(source,target));
+        [Corr_matrix_fall(source,target), lagCorr_matrix_fall(source,target)] = max(Corr_vect_fall);
         
     end
 end
@@ -392,6 +399,8 @@ end
 for target=1:ntargets
     MI_matrix_spring(target,target)=0;
     MI_matrix_fall(target,target)=0;
+    Corr_matrix_fall(target,target)=0;
+    Corr_matrix_spring(target,target)=0;
 end
 
 
@@ -406,25 +415,28 @@ end
 addpath(foldername);
 
 colR = round(jet(nsources).*255);
+colSource = 255;
 
-for j =1:4
-
+for j =1:6
+    
     if j==1
         fileID = fopen([foldername,'/MIfall_10yr','.txt'],'w+');
         matrix = MI_matrix_fall;
-        colSource = 255;
     elseif j==2
         fileID = fopen([foldername,'/TEfall_10yr','.txt'],'w+');
         matrix = TE_matrix_fall;
-        colSource = 255;
     elseif j==3
         fileID = fopen([foldername,'/MI_spring_10yr','.txt'],'w+');
         matrix = MI_matrix_spring;
-        colSource = 255;
     elseif j==4
         fileID = fopen([foldername,'/TE_spring_10yr','.txt'],'w+');
         matrix = TE_matrix_spring;
-        colSource = 255;
+    elseif j==5
+        fileID = fopen([foldername,'/Corr_spring_10yr','.txt'],'w+');
+        matrix = Corr_matrix_spring;
+    elseif j==6
+        fileID = fopen([foldername,'/Corr_fall_10yr','.txt'],'w+');
+        matrix = Corr_matrix_fall;             
     end
     
     tot_info(j) = sum(sum(matrix));
